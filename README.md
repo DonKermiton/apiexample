@@ -1,27 +1,103 @@
-# Apiexample
+# Opis
+Problem został rozwiązany trzema sposobami.
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 17.3.7.
 
-## Development server
+## Pierwszy sposób
+Do request'u można dodać parametr. Parametrem jest klucz, który filtruje po zbiorze i zwraca zgodne elementy.
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
 
-## Code scaffolding
+```
+  public getWithQueryParam(params: Record<string, string>): Observable<ApiResponse[]> {
+    let parsedParams = new HttpParams();
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+    for(let [key, value] of Object.entries(params)) {
+      parsedParams = parsedParams.append(key, value)
+    }
 
-## Build
+    return this.httpClient.get<ApiResponse[]>('https://gorest.co.in/public/v2/todos', {params});
+  }
+}
+```
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
 
-## Running unit tests
+```
+  public firstMethod(): Observable<ApiResponse | null> {
+    return this.apiService.getWithQueryParam({'status': 'pending'})
+      .pipe(
+        map((items) => items.at(1) || null),
+      )
+  }
+```
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+## Drugi sposób
 
-## Running end-to-end tests
+```
+  public get(): Observable<ApiResponse[]> {
+    return this.httpClient.get<ApiResponse[]>('https://gorest.co.in/public/v2/todos');
+  }
+```
 
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
+```
+  public secondMethod(): Observable<ApiResponse | null> {
+    return this.apiService.get()
+      .pipe(
+        mergeMap((item) => item),
+        filter(item => item.status === "pending"),
+        take(2),
+        catchError(() => of(null)),
+      )
+  }
+```
 
-## Further help
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+## Trzeci sposób
+
+```
+  public thirdMethod(): Observable<ApiResponse | null> {
+    return this.apiService.get()
+      .pipe(
+        map((items) => items.filter(item => item.status === "pending").at(1) || null),
+        catchError(() => of(null)),
+      )
+  }
+ ```
+
+## Wywoływanie requestu
+
+HTML
+```
+<div class="method-wrapper">
+  <button (click)="run(firstMethod)">First</button>
+  <button (click)="run(secondMethod)">Second</button>
+  <button (click)="run(thirdMethod)">Third</button>
+</div>
+
+@if(timeElapsed) {
+  <p>{{timeElapsed}} ms</p>
+}
+
+@if(element) {
+  <p>{{element | json}}</p>
+}
+
+```
+
+```
+  public run(method: ApiResponseMethod): void {
+    const startTime = Date.now();
+    method.call(this)
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        catchError(err => {
+          alert("error occurred")
+          return of(err)
+        })
+      )
+      .subscribe((result: ApiResponse | null) => {
+        this.timeElapsed = Date.now() - startTime;
+        this.element = result;
+        this.cdRef.detectChanges()
+      })
+  }
+```
+

@@ -33,7 +33,7 @@ export class AppComponent {
       .pipe(
         takeUntilDestroyed(this.destroyRef),
         catchError(err => {
-          alert("error occured")
+          alert("error occurred")
           return of(err)
         })
       )
